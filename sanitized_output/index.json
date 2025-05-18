@@ -1,0 +1,112 @@
+[
+  {
+    "key": "Aug18",
+    "date": "2018-08-Aug18",
+    "filename": "rtd_Aug18_Weekday.geojson"
+  },
+  {
+    "key": "Aug19",
+    "date": "2019-08-Aug19",
+    "filename": "rtd_Aug19_Weekday.geojson"
+  },
+  {
+    "key": "Aug22",
+    "date": "2022-08-Aug22",
+    "filename": "rtd_Aug22_Weekday.geojson"
+  },
+  {
+    "key": "Jan18",
+    "date": "2018-01-Jan18",
+    "filename": "rtd_Jan18_Weekday.geojson"
+  },
+  {
+    "key": "Jan19",
+    "date": "2019-01-Jan19",
+    "filename": "rtd_Jan19_Weekday.geojson"
+  },
+  {
+    "key": "Jan20",
+    "date": "2020-01-Jan20",
+    "filename": "rtd_Jan20_Weekday.geojson"
+  },
+  {
+    "key": "Jan21",
+    "date": "2021-01-Jan21",
+    "filename": "rtd_Jan21_Weekday.geojson"
+  },
+  {
+    "key": "Jan22",
+    "date": "2022-01-Jan22",
+    "filename": "rtd_Jan22_Weekday.geojson"
+  },
+  {
+    "key": "Jan23",
+    "date": "2023-01-Jan23",
+    "filename": "rtd_Jan23_Weekday.geojson"
+  },
+  {
+    "key": "Jan24",
+    "date": "2024-01-Jan24",
+    "filename": "rtd_Jan24_Weekday.geojson"
+  },
+  {
+    "key": "Jun21",
+    "date": "2021-06-Jun21",
+    "filename": "rtd_Jun21_Weekday.geojson"
+  },
+  {
+    "key": "Mar21",
+    "date": "2021-03-Mar21",
+    "filename": "rtd_Mar21_Weekday.geojson"
+  },
+  {
+    "key": "May18",
+    "date": "2018-05-May18",
+    "filename": "rtd_May18_Weekday.geojson"
+  },
+  {
+    "key": "May19",
+    "date": "2019-05-May19",
+    "filename": "rtd_May19_Weekday.geojson"
+  },
+  {
+    "key": "May22",
+    "date": "2022-05-May22",
+    "filename": "rtd_May22_Weekday.geojson"
+  },
+  {
+    "key": "May23",
+    "date": "2023-05-May23",
+    "filename": "rtd_May23_Weekday.geojson"
+  },
+  {
+    "key": "May24",
+    "date": "2024-05-May24",
+    "filename": "rtd_May24_Weekday.geojson"
+  },
+  {
+    "key": "Pan20",
+    "date": "2020-04-Pan20",
+    "filename": "rtd_Pan20_Weekday.geojson"
+  },
+  {
+    "key": "Sep20",
+    "date": "2020-09-Sep20",
+    "filename": "rtd_Sep20_Weekday.geojson"
+  },
+  {
+    "key": "Sep21",
+    "date": "2021-09-Sep21",
+    "filename": "rtd_Sep21_Weekday.geojson"
+  },
+  {
+    "key": "Sep23",
+    "date": "2023-09-Sep23",
+    "filename": "rtd_Sep23_Weekday.geojson"
+  },
+  {
+    "key": "Sep24",
+    "date": "2024-09-Sep24",
+    "filename": "rtd_Sep24_Weekday.geojson"
+  }
+]
