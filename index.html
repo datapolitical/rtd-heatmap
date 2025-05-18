@@ -45,28 +45,46 @@
   </select>
 </div>
 
-<!-- your existing controls (unchanged) -->
+<!-- your controls-->
 <div id="controls">
   <button id="playBtn">▶ Play</button>
   <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
-  <label>Schedule<select id="scheduleSelect"></select></label>
-  <label>Map Type<select id="mapType">
-    <option value="boardings" selected>Boardings</option>
-    <option value="change">Change</option>
-  </select></label>
-  <label>Radius <input type="range" id="radius" min="1" max="20" step="1" value="10"/>
-         <input type="number" id="radiusNum" min="1" max="20" step="1" value="10"/></label>
-  <label>Blur   <input type="range" id="blur"   min="1" max="20" step="1" value="8"/>
-         <input type="number" id="blurNum"   min="1" max="20" step="1" value="8"/></label>
-  <label>Max    <input type="range" id="max"    min="0.1" max="20" step="0.1" value="0.5"/>
-         <input type="number" id="maxNum"   min="0.1" max="20" step="0.1" value="0.5"/></label>
-  <label>Scale  <select id="scaleType">
-    <option value="normal">Normal</option>
-    <option value="sqrt" selected>√ Scale</option>
-    <option value="log">Log₁₀</option>
-  </select></label>
-  <div id="legend"><span style="background:red"></span> Increase <span style="background:blue"></span> Decrease</div>
+  <label>Schedule
+    <select id="scheduleSelect"></select>
+  </label>
+  <label>Map Type
+    <select id="mapType">
+      <option value="boardings" selected>Boardings</option>
+      <option value="change">Change</option>
+    </select>
+  </label>
+  <label>Radius
+    <input type="range" id="radius" min="1" max="20" step="1" value="10"/>
+    <input type="number" id="radiusNum" min="1" max="20" step="1" value="10"/>
+  </label>
+  <label>Blur
+    <input type="range" id="blur" min="1" max="20" step="1" value="8"/>
+    <input type="number" id="blurNum" min="1" max="20" step="1" value="8"/>
+  </label>
+  <label>Max
+    <input type="range" id="max" min="0.1" max="20" step="0.1" value="0.5"/>
+    <input type="number" id="maxNum" min="0.1" max="20" step="0.1" value="0.5"/>
+  </label>
+  <label>Scale
+    <select id="scaleType">
+      <option value="normal">Normal</option>
+      <option value="sqrt" selected>√ Scale</option>
+      <option value="log">Log₁₀</option>
+    </select>
+  </label>
+  <div id="legend">
+    <span style="background:red"></span> Increase
+    <span style="background:blue"></span> Decrease
+  </div>
 </div>
+
+
+
 
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -75,13 +93,13 @@
 <script>
 /* ---------- schedules you actually have ---------- */
 const schedules = [
-  "Jan18","May18","Aug18",
-  "Jan19","May19","Aug19",
-  "Jan20","May20","Sep20",
-  "Jan21","Mar21","Jun21","Sep21",
-  "Jan22","May22","Aug22",
-  "Jan23","May23","Aug23",
-  "Jan24","May24","Sep24"
+  "Jan18", "May18", "Aug18",
+  "Jan19", "May19", "Aug19",
+  "Jan20", "Pan20", "Sep20",
+  "Jan21", "Mar21", "Jun21", "Sep21",
+  "Jan22", "May22", "Aug22",
+  "Jan23", "May23", "Sep23",
+  "Jan24", "May24", "Sep24"
 ];
 
 /* ---------- 20 preset configs (exact metrics) ---------- */
