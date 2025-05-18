@@ -1,257 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <!-- Open Graph meta tags -->
-<meta property="og:title" content="RTD Heat Map" />
-<meta property="og:description" content="Interactive heat map of RTD boardings by stop and time." />
-<meta property="og:url" content="https://rtd-heatmap.pages.dev/" />
-<meta property="og:image" content="https://rtd-heatmap.pages.dev/social-preview.png" />
-
-<!-- Twitter meta tags (optional but helpful) -->
-<meta name="twitter:title" content="RTD Heat Map" />
-<meta name="twitter:description" content="Explore boardings by time and stop across the RTD system." />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://rtd-heatmap.pages.dev/social-preview.png" />
-  <title>RTD Heatmap – 20 Contrast Presets</title>
-
-  <!-- ADD THIS: -->
-  <link rel="stylesheet" href="css/style.css" />
-
-  <!-- keep Leaflet CSS if you were linking it -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta charset="utf-8"/>
+  <title>RTD Heatmap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 </head>
 <body>
-<div id="map"></div>
+  <div id="map"></div>
 
-<!-- 20-preset panel -->
-<div id="presets">
-  <button id="defaultBtn">Default</button>
-  <select id="presetSelect">
-    <option value="" disabled selected>Contrast Presets</option>
-    <optgroup label="Boardings (hottest vs coldest)">
-      <option value="b1">b1 May 2019</option>
-      <option value="b2">b2 May 2018</option>
-      <option value="b3">b3 May 2022</option>
-      <option value="b4">b4 Jan 2018</option>
-      <option value="b5">b5 Aug 2019</option>
-      <option value="b6">b6 Jan 2020</option>
-      <option value="b7">b7 Jun 2021</option>
-      <option value="b8">b8 Aug 2018</option>
-      <option value="b9">b9 Jan 2019</option>
-      <option value="b10">b10 Sep 2021</option>
-    </optgroup>
-    <optgroup label="Change (ups vs downs)">
-      <option value="c1">c1 Aug 2018</option>
-      <option value="c2">c2 Mar 2021</option>
-      <option value="c3">c3 Jan 2023</option>
-      <option value="c4">c4 May 2018</option>
-      <option value="c5">c5 Jan 2022</option>
-      <option value="c6">c6 Sep 2024</option>
-      <option value="c7">c7 Jun 2021</option>
-      <option value="c8">c8 Aug 2022</option>
-      <option value="c9">c9 Aug 2019</option>
-      <option value="c10">c10 May 2024</option>
-    </optgroup>
-  </select>
-</div>
+  <div id="controls">
+    <div class="top-row">
+      <button id="playBtn">▶ Play</button>
+      <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
+      <button id="toggleAdvanced">Advanced ▾</button>
+    </div>
 
-<!-- your controls-->
-<div id="controls">
-  <div>
-    <button id="playBtn">▶ Play</button>
-    <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
+    <div class="core-row">
+      <label>Schedule
+        <select id="scheduleSelect"></select>
+      </label>
+
+      <label id="compareWrapper" style="display:none;">Compared&nbsp;to
+        <select id="compareSelect"></select>
+      </label>
+
+      <label>View
+        <select id="mapType">
+          <option value="boardings" selected>Boardings</option>
+          <option value="change">Change</option>
+        </select>
+      </label>
+
+      <label>Metric
+        <select id="valueType">
+          <option value="boardings" selected>Boardings</option>
+          <option value="alightings">Alightings</option>
+          <option value="total_rides">Total</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="advancedControls">
+      <label>Radius
+        <input type="range" id="radius" min="1" max="50" value="15"/>
+        <input type="number" id="radiusNum" min="1" max="50" value="15"/>
+      </label>
+
+      <label>Blur
+        <input type="range" id="blur" min="1" max="50" value="15"/>
+        <input type="number" id="blurNum" min="1" max="50" value="15"/>
+      </label>
+
+      <label>Max
+        <input type="range" id="max" min="0.1" max="20" step="0.1" value="1.5"/>
+        <input type="number" id="maxNum" min="0.1" max="20" step="0.1" value="1.5"/>
+      </label>
+
+      <label>Scale
+        <select id="scaleType">
+          <option value="normal">Normal</option>
+          <option value="sqrt" selected>√ Scale</option>
+          <option value="log">Log₁₀</option>
+        </select>
+      </label>
+
+      <div id="legend">
+        <span style="background:red"></span> Increase
+        <span style="background:blue"></span> Decrease
+      </div>
+    </div>
   </div>
-  <label>Schedule
-      <select id="scheduleSelect"></select>
-    </label>
-    <label id="lookbackWrapper" style="display:none;">
-      Lookback
-      <select id="lookbackSelect"></select>
-    </label>
-    <label>
-      Value
-      <select id="valueType">
-        <option value="boardings" selected>Boardings</option>
-        <option value="alightings">Alightings</option>
-        <option value="total_rides">Total Volume</option>
-        <option value="moving_avg">Moving Avg</option>
-        <option value="delta">Change</option>
-      </select>
-    </label>
-    <label id="avgWindowWrapper" style="display:none;">
-      Avg Window
-      <input type="number" id="avgWindow" value="3" min="1" max="15" />
-    </label>
-    <label>Schedule
-    <select id="scheduleSelect"></select>
-  </label>
-  <label>Map Type
-    <select id="mapType">
-      <option value="boardings" selected>Boardings</option>
-      <option value="change">Change</option>
-    </select>
-  </label>
-  <label>Radius
-    <input type="range" id="radius" min="1" max="20" step="1" value="10"/>
-    <input type="number" id="radiusNum" min="1" max="20" step="1" value="10"/>
-  </label>
-  <label>Blur
-    <input type="range" id="blur" min="1" max="20" step="1" value="8"/>
-    <input type="number" id="blurNum" min="1" max="20" step="1" value="8"/>
-  </label>
-  <label>Max
-    <input type="range" id="max" min="0.1" max="20" step="0.1" value="0.5"/>
-    <input type="number" id="maxNum" min="0.1" max="20" step="0.1" value="0.5"/>
-  </label>
-  <label>Scale
-    <select id="scaleType">
-      <option value="normal">Normal</option>
-      <option value="sqrt" selected>√ Scale</option>
-      <option value="log">Log₁₀</option>
-    </select>
-  </label>
-  <div id="legend">
-    <span style="background:red"></span> Increase
-    <span style="background:blue"></span> Decrease
-  </div>
-</div>
 
-
-
-
-<!-- Leaflet -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-
-<script>
-/* ---------- schedules you actually have ---------- */
-const schedules = [
-  "Jan18", "May18", "Aug18",
-  "Jan19", "May19", "Aug19",
-  "Jan20", "Pan20", "Sep20",
-  "Jan21", "Mar21", "Jun21", "Sep21",
-  "Jan22", "May22", "Aug22",
-  "Jan23", "May23", "Sep23",
-  "Jan24", "May24", "Sep24"
-];
-
-/* ---------- 20 preset configs (exact metrics) ---------- */
-const presets = {
-  b1:{sch:"May19",type:"boardings",radius:20,blur:15,max:10.2,scale:"sqrt"},
-  b2:{sch:"May18",type:"boardings",radius:20,blur:15,max:9.93,scale:"sqrt"},
-  b3:{sch:"May22",type:"boardings",radius:18,blur:12,max:8.84,scale:"sqrt"},
-  b4:{sch:"Jan18",type:"boardings",radius:18,blur:12,max:10.3,scale:"sqrt"},
-  b5:{sch:"Aug19",type:"boardings",radius:18,blur:12,max:10.7,scale:"sqrt"},
-  b6:{sch:"Jan20",type:"boardings",radius:16,blur:12,max:9.54,scale:"sqrt"},
-  b7:{sch:"Jun21",type:"boardings",radius:16,blur:12,max:9.11,scale:"sqrt"},
-  b8:{sch:"Aug18",type:"boardings",radius:18,blur:12,max:10.1,scale:"sqrt"},
-  b9:{sch:"Jan19",type:"boardings",radius:18,blur:12,max:9.97,scale:"sqrt"},
-  b10:{sch:"Sep21",type:"boardings",radius:15,blur:10,max:8.5,scale:"sqrt"},
-  c1:{sch:"Aug18",type:"change",radius:18,blur:12,max:12.7,scale:"normal"},
-  c2:{sch:"Mar21",type:"change",radius:16,blur:12,max:6.36,scale:"normal"},
-  c3:{sch:"Jan23",type:"change",radius:16,blur:12,max:7.69,scale:"normal"},
-  c4:{sch:"May18",type:"change",radius:16,blur:12,max:13.4,scale:"normal"},
-  c5:{sch:"Jan22",type:"change",radius:16,blur:12,max:5.81,scale:"normal"},
-  c6:{sch:"Sep24",type:"change",radius:15,blur:12,max:6.0,scale:"normal"},
-  c7:{sch:"Jun21",type:"change",radius:15,blur:10,max:3.0,scale:"normal"},
-  c8:{sch:"Aug22",type:"change",radius:15,blur:10,max:3.03,scale:"normal"},
-  c9:{sch:"Aug19",type:"change",radius:15,blur:10,max:4.87,scale:"normal"},
-  c10:{sch:"May24",type:"change",radius:15,blur:10,max:4.9,scale:"normal"}
-};
-
-/* ---------- map & data preload ---------- */
-const isPortrait = window.matchMedia("(orientation: portrait)").matches;
-const map = L.map('map').setView([39.75, -105.0], isPortrait ? 10 : 11);
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-
-const els=id=>document.getElementById(id);
-const scheduleSel=els('scheduleSelect'),playBtn=els('playBtn'),timeline=els('timeline');
-const mapTypeSel=els('mapType'),radiusRng=els('radius'),blurRng=els('blur'),
-      maxRng=els('max'),radiusNum=els('radiusNum'),blurNum=els('blurNum'),
-      maxNum=els('maxNum'),scaleSel=els('scaleType'),legend=els('legend'),
-      presetSel=els('presetSelect'),defaultBtn=els('defaultBtn');
-
-let allData=[],heatLayer,posLayer,negLayer,playing=false,playInt,noDataCtl=null;
-
-function preload(){
-  scheduleSel.innerHTML=schedules.map(s=>`<option>${s}</option>`).join('');
-  timeline.max=schedules.length-1;
-  Promise.all(schedules.map(k=>
-    fetch(`sanitized_output/rtd_${k}_Weekday.geojson`)
-      .then(r=>r.json()).then(g=>g.features).catch(()=>[])
-  )).then(arr=>{allData=arr; updateFrame(0);});
-}
-
-/* ---------- UI helpers ---------- */
-function bind(r,n){
-  r.oninput=()=>{n.value=r.value; renderFrame(+timeline.value)};
-  n.onchange=()=>{r.value=n.value; renderFrame(+timeline.value)};
-}
-bind(radiusRng,radiusNum); bind(blurRng,blurNum); bind(maxRng,maxNum);
-
-function updateFrame(i){
-  i=Math.max(0,Math.min(schedules.length-1,i));
-  timeline.value=i; scheduleSel.value=schedules[i]; renderFrame(i);
-}
-playBtn.onclick=()=>{ if(!playing){playing=true;playBtn.textContent='❚❚';playInt=setInterval(()=>updateFrame(+timeline.value+1),1000);}
-  else{playing=false;playBtn.textContent='▶';clearInterval(playInt);} };
-timeline.oninput=()=>updateFrame(+timeline.value);
-scheduleSel.onchange=()=>updateFrame(schedules.indexOf(scheduleSel.value));
-
-/* ---------- heat helpers ---------- */
-function pts(feats,isΔ,pos){
-  return feats.reduce((a,f)=>{
-    const v=isΔ?f.properties.delta:f.properties.total_rides;
-    if(isΔ){if(pos&&v<=0)return a;if(!pos&&v>=0)return a;}
-    let w=Math.abs(v); if(scaleSel.value==='sqrt')w=Math.sqrt(w); if(scaleSel.value==='log')w=Math.log10(w+1);
-    a.push([f.geometry.coordinates[1],f.geometry.coordinates[0],w]); return a;
-  },[]);
-}
-
-/* ---------- render ---------- */
-function renderFrame(idx){
-  [heatLayer,posLayer,negLayer].forEach(l=>l&&map.removeLayer(l));
-  if(noDataCtl){map.removeControl(noDataCtl); noDataCtl=null;}
-  const feats=allData[idx];
-  if(!feats||!feats.length){
-    noDataCtl=L.control({position:'topright'});
-    noDataCtl.onAdd=()=>{const d=L.DomUtil.create('div','no-data');d.textContent=`No data for ${schedules[idx]}`;return d;};
-    noDataCtl.addTo(map); return;
-  }
-  const r=+radiusNum.value,b=+blurNum.value,m=+maxNum.value;
-  if(mapTypeSel.value==='boardings'){
-    heatLayer=L.heatLayer(pts(feats,false),{radius:r,blur:b,max:m}).addTo(map);
-    legend.innerHTML='<span style="background:red"></span> Boardings';
-  }else{
-    if(scaleSel.value!=='normal')scaleSel.value='normal';
-    posLayer=L.heatLayer(pts(feats,true,true),{radius:r,blur:b,max:m,gradient:{0.4:'pink',1:'red'}}).addTo(map);
-    negLayer=L.heatLayer(pts(feats,true,false),{radius:r,blur:b,max:m,gradient:{0.4:'lightblue',1:'blue'}}).addTo(map);
-    legend.innerHTML='<span style="background:red"></span> Increase <span style="background:blue"></span> Decrease';
-  }
-}
-mapTypeSel.onchange=()=>renderFrame(+timeline.value);
-scaleSel.onchange  =()=>renderFrame(+timeline.value);
-
-/* ---------- default/reset ---------- */
-defaultBtn.onclick=()=>{radiusRng.value=radiusNum.value=10;blurRng.value=blurNum.value=8;maxRng.value=maxNum.value=0.5;
- scaleSel.value=mapTypeSel.value==='boardings'?'sqrt':'normal';presetSel.selectedIndex=0;renderFrame(+timeline.value);};
-
-/* ---------- preset handling ---------- */
-presetSel.onchange=()=>{
-  const p=presets[presetSel.value]; if(!p)return;
-  scheduleSel.value=p.sch; mapTypeSel.value=p.type;
-  radiusRng.value=radiusNum.value=p.radius;
-  blurRng.value=blurNum.value=p.blur;
-  maxRng.value=maxNum.value=p.max;
-  scaleSel.value=p.scale;
-  updateFrame(schedules.indexOf(p.sch));
-};
-
-/* kick-off */
-preload();
-</script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
