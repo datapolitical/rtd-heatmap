@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RTD Heatmap – 20 Contrast Presets</title>
 
   <!-- ADD THIS: -->
@@ -47,8 +48,10 @@
 
 <!-- your controls-->
 <div id="controls">
-  <button id="playBtn">▶ Play</button>
-  <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
+  <div>
+    <button id="playBtn">▶ Play</button>
+    <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
+  </div>
   <label>Schedule
     <select id="scheduleSelect"></select>
   </label>
@@ -127,7 +130,9 @@ const presets = {
 };
 
 /* ---------- map & data preload ---------- */
-const map=L.map('map').setView([39.75,-105],11);
+const isPortrait = window.matchMedia("(orientation: portrait)").matches;
+const map = L.map('map').setView([39.75, -105.0], isPortrait ? 10 : 11);
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
 
 const els=id=>document.getElementById(id);
