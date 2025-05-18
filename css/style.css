@@ -1,71 +1,82 @@
-/* ===== global ===== */
+
+/* ========= global ========= */
 html,body,#map{margin:0;padding:0;height:100%;width:100%;overflow:hidden}
 *{box-sizing:border-box}
 
-/* ===== control bar ===== */
+/* ========= bottom control bar ========= */
 #controls{
   position:absolute;bottom:0;left:0;
   width:100vw;max-width:100vw;
-  height:22vh;
+  height:20vh;                              /* trimmed total bar height */
   background:rgba(255,255,255,.96);
   display:flex;flex-wrap:wrap;
-  align-content:flex-start;           /* rows stack top-down */
-  justify-content:space-around;
-  gap:12px 16px;                      /* row gap | column gap */
-  padding:12px 10px;
+  align-content:flex-start;
+  justify-content:flex-start;
+  gap:10px 14px;                            /* row gap | col gap */
+  padding:10px 8px;
   font-family:sans-serif;
-  font-size:18px;                     /* desktop / large phones */
+  font-size:18px;
   overflow-y:auto;overflow-x:hidden;
-  z-index:1000;
-  box-shadow:0 -1px 4px rgba(0,0,0,.15);
+  z-index:1000;box-shadow:0 -1px 4px rgba(0,0,0,.15);
 }
 
-/* label block keeps caption + control together */
-#controls label{
-  display:flex;flex-direction:column;align-items:center;
-  flex:0 0 170px;                    /* fixed 170 px column */
+/* ----- play + timeline gets full row ----- */
+#controls button#playBtn{
+  flex:0 0 70px;
+  font-size:18px;padding:8px 14px;cursor:pointer;
+}
+#controls input#timeline{
+  flex:1 1 calc(100% - 90px);               /* fills rest of row */
+  max-width:100%;
+  height:30px;margin-top:6px;
 }
 
-/* sliders */
-#controls input[type=range]{width:100%;height:30px}
+/* slider thumb / track */
+input[type=range]{
+  width:100%;height:30px;
+}
 input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  height:26px;width:26px;border-radius:50%;
-  background:#007bff;border:0;margin-top:-9px;
+  -webkit-appearance:none;height:24px;width:24px;border-radius:50%;
+  background:#007bff;border:0;margin-top:-8px;
 }
 input[type=range]::-webkit-slider-runnable-track{
-  height:8px;background:#d0d0d0;border-radius:4px
+  height:8px;background:#d0d0d0;border-radius:4px;
+}
+
+/* ----- label blocks (rows 2 & 3) ----- */
+#controls label{
+  display:flex;flex-direction:column;align-items:center;
+  flex:0 0 170px;                           /* fixed width block */
 }
 
 /* number boxes & selects */
-#controls input[type=number],
-#controls select{
-  width:100%;height:42px;
+#controls input[type=number],#controls select{
+  width:110px;height:44px;
   font-size:18px;padding:6px 8px;
 }
 
-/* play button */
-#controls button{font-size:18px;padding:10px 18px;cursor:pointer}
-
-/* legend block */
-#legend{display:flex;align-items:center;gap:8px;font-size:16px}
+/* legend spans full width on its own line */
+#legend{
+  flex:0 0 100%;
+  display:flex;justify-content:center;align-items:center;
+  gap:10px;font-size:16px;margin-top:4px;
+}
 #legend span{display:inline-block;width:16px;height:16px}
 
-/* ===== small phones (≤500px) ===== */
+/* ========= small phones (≤500 px) ========= */
 @media(max-width:500px){
   #controls{
-    font-size:22px;height:25vh;
-    gap:14px 18px;padding:14px 10px;
+    font-size:22px;height:22vh;
+    gap:12px 16px;padding:12px 6px;
   }
-  #controls label{flex:0 0 190px;font-size:22px}
-  #controls input[type=range]{height:36px}
-  #controls input[type=number],#controls select{
-    height:50px;font-size:22px
-  }
-  #controls button{font-size:22px;padding:12px 24px}
-  #legend{font-size:18px}
-  input[type=range]::-webkit-slider-thumb{
-    height:32px;width:32px;margin-top:-12px
-  }
+  #controls button#playBtn{font-size:22px;padding:10px 18px}
+  #controls input#timeline{height:36px}
+  input[type=range]{height:36px}
+  input[type=range]::-webkit-slider-thumb{height:30px;width:30px;margin-top:-12px}
   input[type=range]::-webkit-slider-runnable-track{height:10px}
+  #controls label{flex:0 0 190px;font-size:22px}
+  #controls input[type=number],#controls select{
+    width:120px;height:50px;font-size:22px
+  }
+  #legend{font-size:18px}
 }
