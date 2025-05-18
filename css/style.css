@@ -1,58 +1,121 @@
+/* ========= global ========= */
 html,body,#map{
-  margin:0;padding:0;height:100%;width:100%;
+  margin:0;
+  padding:0;
+  height:100%;
+  width:100%;
+  overflow:hidden;
 }
 *{box-sizing:border-box}
 
-/* ---- control bar ---- */
+/* ========= bottom control bar ========= */
 #controls{
-  position:absolute;bottom:0;left:0;
-  width:100vw;max-width:100vw;
-  height:30vh;                         /* ≈ one-third of screen */
-  background:rgba(255,255,255,.95);
-  display:flex;flex-wrap:wrap;         /* wrap → second row */
-  align-content:flex-start;            /* pack rows top-to-bottom */
-  justify-content:space-evenly;
-  gap:16px 20px;
-  padding:14px 12px;
+  position:absolute;
+  bottom:0;
+  left:0;
+  width:100vw;
+  max-width:100vw;
+  height:22vh;                      /* ------------- trimmed height */
+  background:rgba(255,255,255,.96);
+  display:flex;
+  flex-wrap:wrap;                   /* two-row wrap */
+  align-content:flex-start;         /* rows stack top-to-bottom */
+  justify-content:space-around;
+  gap:14px 18px;
+  padding:14px 10px;
   font-family:sans-serif;
-  font-size:18px;                      /* desktop / large phones */
-  overflow-y:auto;overflow-x:hidden;
+  font-size:18px;                   /* desktop / larger phones */
+  overflow-y:auto;
+  overflow-x:hidden;
   z-index:1000;
   box-shadow:0 -1px 4px rgba(0,0,0,.15);
 }
 
+/* each label block */
 #controls label{
-  display:flex;flex-direction:column;align-items:center;
-  flex:1 1 140px;                      /* forces wrap at ~140 px */
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  flex:1 1 150px;                   /* wrap when column ≈150 px */
   margin:4px;
 }
 
+/* slider track / thumb sizes */
 #controls input[type=range]{
-  width:130px;height:32px;
+  width:130px;
+  height:30px;
 }
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  height:26px;width:26px;
+  border-radius:50%;
+  background:#007bff;border:0;
+  margin-top:-9px;                  /* center on track */
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:8px;
+  background:#d0d0d0;
+  border-radius:4px;
+}
+
+/* number boxes, selects */
 #controls input[type=number],
 #controls select{
   width:90px;height:42px;
-  font-size:18px;padding:6px 10px;
+  font-size:18px;
+  padding:6px 8px;
 }
-#controls button{
-  font-size:18px;padding:10px 18px;cursor:pointer;
-}
-#legend{
-  display:flex;align-items:center;gap:10px;font-size:16px;
-}
-#legend span{display:inline-block;width:16px;height:16px}
 
-/* ---- small screens (≤500 px) get even larger text ---- */
-@media(max-width:500px){
+/* buttons */
+#controls button{
+  font-size:18px;
+  padding:10px 18px;
+  cursor:pointer;
+}
+
+/* legend */
+#legend{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:16px;
+}
+#legend span{
+  display:inline-block;
+  width:16px;height:16px;
+}
+
+/* ========= small-screen boost (≤500 px) ========= */
+@media (max-width:500px){
   #controls{
-    font-size:22px;height:35vh;
-    gap:18px 24px;padding:16px 12px;
+    font-size:22px;
+    height:25vh;                    /* ------------- trimmed height */
+    gap:18px 20px;
+    padding:18px 12px;
   }
-  #controls input[type=range]{width:160px;height:36px}
-  #controls input[type=number],#controls select{
-    width:110px;height:48px;font-size:22px;
+  #controls label{
+    flex:1 1 180px;
+    font-size:22px;
   }
-  #controls button{font-size:22px;padding:12px 22px}
+  #controls input[type=range]{
+    width:160px;height:36px;
+  }
+  #controls input[type=number],
+  #controls select{
+    width:110px;height:52px;
+    font-size:22px;
+  }
+  #controls button{
+    font-size:22px;
+    padding:12px 24px;
+  }
   #legend{font-size:18px}
+  /* bigger slider thumb */
+  input[type=range]::-webkit-slider-thumb{
+    height:32px;width:32px;
+    margin-top:-12px;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:10px;
+  }
 }
