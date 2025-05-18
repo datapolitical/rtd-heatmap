@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>RTD Boardings & Change Player with Presets</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    html,body,#map { margin:0; padding:0; height:100vh; }
+    #controls, #presets {
+      position:absolute; background:rgba(255,255,255,0.9);
+      padding:8px; border:1px solid #ccc;
+      font-family:sans-serif; font-size:13px;
+      z-index:1000; display:flex; gap:12px; flex-wrap:wrap;
+      align-items:center;
+    }
+    #controls {
+      bottom:10px; left:50%; transform:translateX(-50%);
+    }
+    #presets {
+      top:50%; right:10px; flex-direction:column;
+      transform:translateY(-50%);
+    }
+    #presets button {
+      margin-bottom:6px; padding:6px 12px;
+    }
+    #controls label { display:flex; flex-direction:column; align-items:center; }
+    #controls input[type=range] { width:80px; }
+    #controls input[type=number]{ width:50px; margin-top:4px; }
+    #controls select{ margin-top:4px; }
+    #controls button{ padding:4px 8px; }
+    #legend{ display:flex; align-items:center; gap:8px; font-size:12px; }
+    #legend span{ display:inline-block; width:12px; height:12px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Presets Panel on Right -->
+  <div id="presets">
+    <button id="presetBoardings">Boardings Preset</button>
+    <button id="presetChange">Change Preset</button>
+  </div>
+
+  <!-- Controls Panel on Bottom -->
+  <div id="controls">
+    <button id="playBtn">▶ Play</button>
+    <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
+    <label>Schedule<select id="scheduleSelect"></select></label>
+    <label>Map Type<select id="mapType">
+      <option value="boardings" selected>Boardings</option>
+      <option value="change">Change</option>
+    </select></label>
+    <label>Radius
+      <input type="range" id="radius" min="1" max="20" step="1" value="10"/>
+      <input type="number" id="radiusNum" min="1" max="20" step="1" value="10"/>
+    </label>
+    <label>Blur
+      <input type="range" id="blur" min="1" max="20" step="1" value="8"/>
+      <input type="number" id="blurNum" min="1" max="20" step="1" value="8"/>
+    </label>
+    <label>Max
+      <input type="range" id="max" min="0" max="5" step="0.1" value=".5"/>
+      <input type="number" id="maxNum" min="0" max="5" step="0.1" value=".5"/>
+    </label>
+    <label>Scale<select id="scaleType">
+      <option value="normal">Normal</option>
+      <option value="sqrt" selected>√ Scale</option>
+      <option value="log">Log₁₀</option>
+    </select></label>
+    <div id="legend">
+      <span style="background:red"></span> Increase
+      <span style="background:blue"></span> Decrease
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    // ── Config ─────────────────────────────────────────────────────
+    const schedules = [
+      'Jan18','May18','Aug18','Jan19','May19','Aug19',
+      'Jan20','May20','Aug20','Jan21','May21','Aug21',
+      'Jan22','May22','Aug22','Jan23','May23','Aug23',
+      'Jan24','May24','Sep24'
+    ];
+
+    // ── Map Setup ─────────────────────────────────────────────────
+    const map = L.map('map').setView([39.75,-105.0],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap'
+    }).addTo(map);
+
+    // ── Elements ──────────────────────────────────────────────────
+    const playBtn      = document.getElementById('playBtn');
+    const timeline     = document.getElementById('timeline');
+    const scheduleSel  = document.getElementById('scheduleSelect');
+    const mapTypeSel   = document.getElementById('mapType');
+    const radiusRng    = document.getElementById('radius');
+    const blurRng      = document.getElementById('blur');
+    const maxRng       = document.getElementById('max');
+    const radiusNum    = document.getElementById('radiusNum');
+    const blurNum      = document.getElementById('blurNum');
+    const maxNum       = document.getElementById('maxNum');
+    const scaleSel     = document.getElementById('scaleType');
+    const legend       = document.getElementById('legend');
+    const presetBoard  = document.getElementById('presetBoardings');
+    const presetChange = document.getElementById('presetChange');
+
+    let allFeatures = [], heatLayer, posLayer, negLayer;
+    let playing = false, playInterval;
+
+    // ── Preload Data ──────────────────────────────────────────────
+    Promise.all(
+      schedules.map(key =>
+        fetch(`sanitized_output/rtd_${key}_Weekday.geojson`)
+          .then(r=>r.ok? r.json() : Promise.reject(key))
+          .then(gj=>gj.features)
+          .catch(e=>{ console.error('Missing',e); return []; })
+      )
+    ).then(arrays=>{
+      allFeatures = arrays;
+      timeline.max = schedules.length - 1;
+      scheduleSel.innerHTML = schedules.map(s=>`<option>${s}</option>`).join('');
+      updateFrame(0);
+    });
+
+    // ── Frame Functions ───────────────────────────────────────────
+    function updateFrame(idx){
+      idx = Math.max(0, Math.min(schedules.length-1, idx));
+      timeline.value    = idx;
+      scheduleSel.value = schedules[idx];
+      renderFrame(idx);
+    }
+    playBtn.onclick = ()=>{
+      if(!playing){
+        playing = true;
+        playBtn.textContent = '❚❚ Pause';
+        playInterval = setInterval(()=> updateFrame((+timeline.value+1)%schedules.length), 1000);
+      } else {
+        playing = false;
+        playBtn.textContent = '▶ Play';
+        clearInterval(playInterval);
+      }
+    };
+    timeline.oninput    = ()=> updateFrame(+timeline.value);
+    scheduleSel.onchange = ()=> updateFrame(schedules.indexOf(scheduleSel.value));
+
+    // ── Compute weighted points ───────────────────────────────────
+    function computePoints(features, isDelta, positive){
+      const scale = scaleSel.value;
+      return features.reduce((pts,f)=>{
+        const v = isDelta? f.properties.delta : f.properties.total_rides;
+        if(isDelta){
+          if(positive && v<=0) return pts;
+          if(!positive && v>=0) return pts;
+        }
+        let w = Math.abs(v);
+        if(scale==='sqrt') w = Math.sqrt(w);
+        if(scale==='log')  w = Math.log10(w+1);
+        pts.push([f.geometry.coordinates[1],f.geometry.coordinates[0],w]);
+        return pts;
+      },[]);
+    }
+
+    // ── Render One Frame ─────────────────────────────────────────
+    function renderFrame(idx){
+      [heatLayer,posLayer,negLayer].forEach(l=>l&&map.removeLayer(l));
+      const feats = allFeatures[idx];
+      const rad = +radiusNum.value, blu = +blurNum.value, mx = +maxNum.value;
+
+      if(mapTypeSel.value==='boardings'){
+        heatLayer = L.heatLayer(computePoints(feats,false), {radius:rad,blur:blu,max:mx}).addTo(map);
+        legend.innerHTML = '<span style="background:red"></span> Boardings';
+      } else {
+        posLayer = L.heatLayer(computePoints(feats,true,true), {
+          radius:rad,blur:blu,max:mx,gradient:{0.4:'pink',1:'red'}
+        }).addTo(map);
+        negLayer = L.heatLayer(computePoints(feats,true,false), {
+          radius:rad,blur:blu,max:mx,gradient:{0.4:'lightblue',1:'blue'}
+        }).addTo(map);
+        legend.innerHTML = '<span style="background:red"></span> Increase  '+
+                           '<span style="background:blue"></span> Decrease';
+      }
+    }
+
+    // ── Bind Range Inputs ────────────────────────────────────────
+    function bindRange(rng,num){
+      rng.oninput  = ()=>{ num.value=rng.value; renderFrame(+timeline.value); };
+      num.onchange = ()=>{ rng.value=num.value; renderFrame(+timeline.value); };
+    }
+    bindRange(radiusRng,radiusNum);
+    bindRange(blurRng,  blurNum);
+    bindRange(maxRng,   maxNum);
+    mapTypeSel.onchange = ()=> renderFrame(+timeline.value);
+    scaleSel.onchange   = ()=> renderFrame(+timeline.value);
+
+    // ── Presets ─────────────────────────────────────────────────
+    presetBoard.onclick = ()=>{
+      // sqrt scale, bigger radius/blur, 90th pct of sqrt(boardings)
+      scaleSel.value='sqrt';
+      radiusNum.value=25; radiusRng.value=25;
+      blurNum.value=15;   blurRng.value=15;
+      const feats = allFeatures[+timeline.value];
+      const arr = feats.map(f=>Math.sqrt(f.properties.total_rides)).sort((a,b)=>a-b);
+      const p = arr[Math.floor(arr.length*0.9)]||1;
+      maxNum.value = p.toFixed(1); maxRng.value = p.toFixed(1);
+      renderFrame(+timeline.value);
+    };
+
+    presetChange.onclick = ()=>{
+      // normal scale, tighter radius/blur, 90th pct of abs(delta)
+      scaleSel.value='normal';
+      radiusNum.value=25; radiusRng.value=25;
+      blurNum.value=10;   blurRng.value=10;
+      const feats = allFeatures[+timeline.value];
+      const arr = feats.map(f=>Math.abs(f.properties.delta)).sort((a,b)=>a-b);
+      const p = arr[Math.floor(arr.length*0.9)]||1;
+      maxNum.value = p.toFixed(1); maxRng.value = p.toFixed(1);
+      renderFrame(+timeline.value);
+    };
+  </script>
+</body>
+</html>
