@@ -1,138 +1,99 @@
+
 html, body, #map {
-  width: 100%;
-  height: 100vh;
   margin: 0;
   padding: 0;
-}
-
-#controls,
-#presets {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.92);
-  padding: 8px;
-  border: 1px solid #ccc;
-  font-family: system-ui, sans-serif;
-  font-size: 13px;
-  z-index: 1000;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
+  height: 100%;
 }
 
 #controls {
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-#presets {
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  flex-direction: column;
-}
-
-#presets button,
-#presets select {
-  margin-bottom: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 20vh;
+  background: rgba(255,255,255,0.96);
+  border-top: 1px solid #ccc;
+  padding: 16px 24px;
+  font-family: sans-serif;
+  font-size: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-evenly;
+  align-items: center;
+  z-index: 1000;
+  overflow-y: auto;
 }
 
 #controls label {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  font-weight: bold;
+  font-size: 16px;
+  flex: 1 1 150px;
 }
 
 #controls input[type=range] {
-  width: 80px;
+  width: 140px;
+  height: 24px;
 }
 
-#controls input[type=number] {
-  width: 50px;
-  margin-top: 4px;
-}
-
+#controls input[type=number],
 #controls select {
-  margin-top: 4px;
+  font-size: 16px;
+  height: 36px;
+  padding: 4px 6px;
+  width: 70px;
 }
 
 #controls button {
-  padding: 4px 8px;
+  font-size: 18px;
+  padding: 8px 16px;
 }
 
 #legend {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 #legend span {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
-.no-data {
-  font-weight: bold;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid #777;
-}
-
-/* MOBILE-OPTIMIZED CONTROLS */
-@media (max-width: 768px) {
-  #controls,
-  #presets {
-    font-size: 20px;
-    gap: 20px;
-  }
-
+@media (max-width: 600px) {
   #controls {
-    flex-direction: column;
-    align-items: stretch;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    transform: none;
-    padding: 12px;
+    font-size: 17px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    height: 25vh;
+    overflow-y: auto;
   }
 
   #controls label {
-    width: 100%;
-    font-size: 18px;
+    font-size: 17px;
+    width: auto;
+    flex: 1 1 160px;
   }
 
-  #controls input[type=range] {
-    width: 100%;
-    height: 30px;
-  }
-
+  #controls input[type=range],
   #controls input[type=number],
   #controls select {
-    font-size: 18px;
-    height: 36px;
-    padding: 4px;
     width: 100%;
+    max-width: 180px;
   }
 
-  #controls button,
-  #presets button {
-    font-size: 18px;
-    padding: 10px 16px;
-    width: 100%;
+  #controls button {
+    width: auto;
+    max-width: 180px;
   }
 
   #legend {
-    font-size: 18px;
-  }
-
-  #presets {
-    top: 10px;
-    right: 10px;
-    transform: none;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
