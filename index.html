@@ -2,8 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>RTD Heatmap</title>
-  <link rel="stylesheet" href="css/style.css"/>
+  <title>RTD Boardings & Change Map</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <style>
+    html, body, #map { width:100%; height:100vh; margin:0; padding:0; }
+    #controls, #presets {
+      position:absolute; background:rgba(255,255,255,0.9);
+      padding:8px; border:1px solid #ccc;
+      font-family:sans-serif; font-size:13px;
+      z-index:1000; display:flex; gap:12px;
+      flex-wrap:wrap; align-items:center;
+    }
+    #controls { bottom:10px; left:50%; transform:translateX(-50%); }
+    #presets  { top:50%;  right:10px; transform:translateY(-50%); flex-direction:column; }
+    #presets button, #presets select { margin-bottom:8px; padding:6px 12px; cursor:pointer; }
+    #controls label { display:flex; flex-direction:column; align-items:center; }
+    #controls input[type=range]{ width:80px; }
+    #controls input[type=number]{ width:50px; margin-top:4px; }
+    #legend { display:flex; align-items:center; gap:8px; font-size:12px; }
+    #legend span { display:inline-block; width:12px; height:12px; }
+    .no-data { font-weight:bold; padding:4px 8px; background:rgba(255,255,255,0.8); border:1px solid #777; }
+  </style>
 </head>
 <body>
   <div id="map"></div>
@@ -12,17 +34,31 @@
     <button id="defaultBtn">Default</button>
     <select id="presetSelect">
       <option value="" disabled selected>Choose Preset</option>
+      <option value="b90">Boardings Top 10%</option>
+      <option value="b75">Boardings Top 25%</option>
+      <option value="b50">Boardings Median</option>
+      <option value="b25">Boardings Bottom 25%</option>
+      <option value="b10">Boardings Extreme Hubs</option>
+      <option value="c90">Change Top 10%</option>
+      <option value="c75">Change Top 25%</option>
+      <option value="c50">Change Median</option>
+      <option value="c25">Change Bottom 25%</option>
+      <option value="c10">Change Stable</option>
     </select>
   </div>
 
   <div id="controls">
     <button id="playBtn">▶ Play</button>
     <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
-    <label>Schedule<select id="scheduleSelect"></select></label>
-    <label>Map Type<select id="mapType">
-      <option value="boardings" selected>Boardings</option>
-      <option value="change">Change</option>
-    </select></label>
+    <label>Schedule
+      <select id="scheduleSelect"></select>
+    </label>
+    <label>Map Type
+      <select id="mapType">
+        <option value="boardings" selected>Boardings</option>
+        <option value="change">Change</option>
+      </select>
+    </label>
     <label>Radius
       <input type="range" id="radius" min="1" max="20" step="1" value="10"/>
       <input type="number" id="radiusNum" min="1" max="20" step="1" value="10"/>
@@ -35,21 +71,108 @@
       <input type="range" id="max" min="0" max="20" step="0.1" value="0.5"/>
       <input type="number" id="maxNum" min="0" max="20" step="0.1" value="0.5"/>
     </label>
-    <label>Scale<select id="scaleType">
-      <option value="normal">Normal</option>
-      <option value="sqrt" selected>√ Scale</option>
-      <option value="log">Log₁₀</option>
-    </select></label>
+    <label>Scale
+      <select id="scaleType">
+        <option value="normal">Normal</option>
+        <option value="sqrt" selected>√ Scale</option>
+        <option value="log">Log₁₀</option>
+      </select>
+    </label>
     <div id="legend">
       <span style="background:red"></span> Increase
       <span style="background:blue"></span> Decrease
     </div>
   </div>
 
-  <!-- Leaflet core & heat plugin -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-  <!-- Your application as a module -->
-  <script type="module" src="js/app.js"></script>
-</body>
-</html>
+  <script>
+    // ------------------------------------------------------------
+    // Self-contained app.js + presets.js
+    // ------------------------------------------------------------
+
+    // 1) Hard-coded schedules you actually have
+    const schedules = [
+      "Jan18","May18","Aug18",
+      "Jan19","May19","Aug19",
+      "Jan20","Sep20","Jan21",
+      "Mar21","Jun21","Sep21",
+      "Jan22","May22","Aug22",
+      "Jan23","May23","Sep23",
+      "Jan24","May24","Sep24"
+    ];
+
+    // 2) Preset definitions
+    const presetList = [
+      { key:'b90', pct:0.90, rad:20, blu:15, mode:'boardings',
+        transform:p=>Math.sqrt(p.total_rides), scale:'sqrt' },
+      { key:'b75', pct:0.75, rad:18, blu:12, mode:'boardings',
+        transform:p=>Math.sqrt(p.total_rides), scale:'sqrt' },
+      { key:'b50', pct:0.50, rad:15, blu:10, mode:'boardings',
+        transform:p=>Math.sqrt(p.total_rides), scale:'sqrt' },
+      { key:'b25', pct:0.25, rad:12, blu:8,  mode:'boardings',
+        transform:p=>Math.sqrt(p.total_rides), scale:'sqrt' },
+      { key:'b10', pct:0.99, rad:25, blu:20, mode:'boardings',
+        transform:p=>Math.log10(p.total_rides+1), scale:'log' },
+      { key:'c90', pct:0.90, rad:15, blu:12, mode:'change',
+        transform:p=>Math.abs(p.delta), scale:'normal' },
+      { key:'c75', pct:0.75, rad:12, blu:10, mode:'change',
+        transform:p=>Math.abs(p.delta), scale:'normal' },
+      { key:'c50', pct:0.50, rad:10, blu:8,  mode:'change',
+        transform:p=>Math.abs(p.delta), scale:'normal' },
+      { key:'c25', pct:0.25, rad:8,  blu:6,  mode:'change',
+        transform:p=>Math.abs(p.delta), scale:'normal' },
+      { key:'c10', pct:0.10, rad:6,  blu:4,  mode:'change',
+        transform:p=>Math.abs(p.delta), scale:'normal' }
+    ];
+
+    // 3) Helpers to populate presets
+    function populatePresets() {
+      const sel = document.getElementById('presetSelect');
+      presetList.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.key; o.textContent = `${p.mode==='boardings'?'B':'C'} ${Math.floor(p.pct*100)}%`;
+        sel.appendChild(o);
+      });
+    }
+
+    function applyPreset(key, features) {
+      const p = presetList.find(x=>x.key===key);
+      if(!p) return null;
+      const arr = features.map(f=>p.transform(f.properties)).sort((a,b)=>a-b);
+      const maxv = arr[Math.floor(arr.length * p.pct)] || 0.1;
+      return { rad:p.rad, blu:p.blu, maxv:+maxv.toFixed(1), scale:p.scale };
+    }
+
+    // 4) Set up map
+    const map = L.map('map').setView([39.75,-105.0],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap'
+    }).addTo(map);
+
+    // 5) UI refs
+    const playBtn      = document.getElementById('playBtn'),
+          timeline     = document.getElementById('timeline'),
+          scheduleSel  = document.getElementById('scheduleSelect'),
+          mapTypeSel   = document.getElementById('mapType'),
+          radiusRng    = document.getElementById('radius'),
+          blurRng      = document.getElementById('blur'),
+          maxRng       = document.getElementById('max'),
+          radiusNum    = document.getElementById('radiusNum'),
+          blurNum      = document.getElementById('blurNum'),
+          maxNum       = document.getElementById('maxNum'),
+          scaleSel     = document.getElementById('scaleType'),
+          legend       = document.getElementById('legend'),
+          defaultBtn   = document.getElementById('defaultBtn'),
+          presetSelect = document.getElementById('presetSelect');
+
+    let allFeatures = [], heatLayer, posLayer, negLayer;
+    let playing=false, playInterval, noDataControl=null;
+
+    // 6) Populate schedule dropdown & slider
+    function initSchedules(){
+      scheduleSel.innerHTML = schedules.map(s=>`<option>${s}</option>`).join('');
+      timeline.max = schedules.length-1;
+      // preload features
+      Promise.all(schedules.map(key=>
+        fetch(`sanitized_output/rtd
