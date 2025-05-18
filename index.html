@@ -64,6 +64,27 @@
     <input type="range" id="timeline" min="0" max="0" step="1" value="0"/>
   </div>
   <label>Schedule
+      <select id="scheduleSelect"></select>
+    </label>
+    <label id="lookbackWrapper" style="display:none;">
+      Lookback
+      <select id="lookbackSelect"></select>
+    </label>
+    <label>
+      Value
+      <select id="valueType">
+        <option value="boardings" selected>Boardings</option>
+        <option value="alightings">Alightings</option>
+        <option value="total_rides">Total Volume</option>
+        <option value="moving_avg">Moving Avg</option>
+        <option value="delta">Change</option>
+      </select>
+    </label>
+    <label id="avgWindowWrapper" style="display:none;">
+      Avg Window
+      <input type="number" id="avgWindow" value="3" min="1" max="15" />
+    </label>
+    <label>Schedule
     <select id="scheduleSelect"></select>
   </label>
   <label>Map Type

@@ -17,6 +17,9 @@ const playBtn      = document.getElementById('playBtn'),
       maxNum       = document.getElementById('maxNum'),
       scaleSel     = document.getElementById('scaleType'),
       legend       = document.getElementById('legend'),
+      valueTypeSel = document.getElementById('valueType'),
+      lookbackSel = document.getElementById('lookbackSelect'),
+      avgWindowNum = document.getElementById('avgWindow'),
       defaultBtn   = document.getElementById('defaultBtn'),
       presetSelect = document.getElementById('presetSelect');
 

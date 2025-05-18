@@ -122,3 +122,16 @@ html, body, #map {
     height: 10px;
   }
 }
+
+
+#lookbackWrapper,
+#avgWindowWrapper {
+  display: none;
+}
+
+@media (max-width: 600px), (orientation: portrait) {
+  #controls {
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+}
