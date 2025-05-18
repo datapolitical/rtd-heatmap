@@ -3,6 +3,28 @@
 html,body,#map{margin:0;padding:0;height:100%;width:100%;overflow:hidden}
 *{box-sizing:border-box}
 
+#presets {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  padding: 5px 10px;
+  border-radius: 8px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  font-size: 1.1em;
+  z-index: 999;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#presets select {
+  font-size: 1em;
+  padding: 4px;
+}
+#presets button {
+  font-size: 1em;
+  padding: 4px 8px;
+}
 /* ========= bottom control bar ========= */
 #controls{
   position:absolute;bottom:0;left:0;
