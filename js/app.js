@@ -1,194 +1,219 @@
-// ─────────────────────────────────────────────
-// RTD Heatmap – main logic (ES-module)
-// ─────────────────────────────────────────────
+// js/app.js
 
-// Map init
-const map = L.map('map').setView([39.75, -105], 10);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap'
-}).addTo(map);
-
-// DOM handles
-const playBtn      = document.getElementById('playBtn');
-const timeline     = document.getElementById('timeline');
-const scheduleSel  = document.getElementById('scheduleSelect');
-const compareSel   = document.getElementById('compareSelect');
-const compareWrapper = document.getElementById('compareWrapper');
-const mapTypeSel   = document.getElementById('mapType');
-const valueSel     = document.getElementById('valueType');
-const radiusR      = document.getElementById('radius');
-const radiusN      = document.getElementById('radiusNum');
-const blurR        = document.getElementById('blur');
-const blurN        = document.getElementById('blurNum');
-const maxR         = document.getElementById('max');
-const maxN         = document.getElementById('maxNum');
-const scaleSel     = document.getElementById('scaleType');
-const legend       = document.getElementById('legend');
-const advBtn       = document.getElementById('toggleAdvanced');
-const advPanel     = document.getElementById('advancedControls');
-
-// Data holders
-let schedules = [];
-let allFeatures = [];     // array of [ Feature[] ]
-let heatLayer, posLayer, negLayer;
-let current = 0;
-let playing = false;
-let playInt  = null;
-
-// ─────────────────────────────────────────────
-// Advanced-mode toggle
-// ─────────────────────────────────────────────
-let advOpen = true;
-advBtn.onclick = () => {
-  advOpen = !advOpen;
-  advPanel.style.display = advOpen ? 'flex' : 'none';
-  advBtn.classList.toggle('active', advOpen);
+// 0) Monkey-patch canvas to suppress the will-read-frequently warning
+const _origGetCtx = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = function(type, options) {
+  if (type === '2d') {
+    const opts = Object.assign({}, options, { willReadFrequently: true });
+    return _origGetCtx.call(this, type, opts);
+  }
+  return _origGetCtx.call(this, type, options);
 };
 
-// ─────────────────────────────────────────────
-// Helper: keep range + number in sync
-// ─────────────────────────────────────────────
-[[radiusR, radiusN], [blurR, blurN], [maxR, maxN]].forEach(([range, num]) => {
-  range.oninput  = () => { num.value = range.value; render(current); };
-  num.onchange   = () => { range.value = num.value; render(current); };
-});
+document.addEventListener('DOMContentLoaded', () => {
+  let stopsMetadata = {};
+  let scheduleKeys = [];
+  let currentIdx = 0;
+  let gap = 1;
+  let playTimer = null;
 
-// ─────────────────────────────────────────────
-// Load schedule list & GeoJSONs
-// ─────────────────────────────────────────────
-fetch('sanitized_output/index.json')
-  .then(r => r.json())
-  .then(list => {
-    schedules = list;
-    scheduleSel.innerHTML = compareSel.innerHTML =
-      schedules.map(s => `<option>${s}</option>`).join('');
-    timeline.max = schedules.length - 1;
+  let map, heatLayer, routeLayer;
 
-    // Fetch all GeoJSON files
-    return Promise.all(
-      schedules.map(key =>
-        fetch(`sanitized_output/rtd_${key}_Weekday.geojson`)
-          .then(r => r.json())
-          .then(gj => gj.features)
-      )
-    );
-  })
-  .then(results => {
-    allFeatures = results;
-    render(0);
+  // 1) Load metadata & index.json
+  Promise.all([
+    fetch('sanitized_output/stops_metadata.json').then(r => r.json()),
+    fetch('sanitized_output/index.json').then(r => r.json())
+  ]).then(([stopsObj, idx]) => {
+    Object.entries(stopsObj).forEach(([id, stop]) => {
+      stopsMetadata[id] = stop;
+    });
+    scheduleKeys = idx.map(d => d.schedule_key);
+    setupControls();
+    initMap();
   });
 
-// ─────────────────────────────────────────────
-// Playback controls
-// ─────────────────────────────────────────────
-playBtn.onclick = () => {
-  if (!playing) {
-    playInt = setInterval(() => {
-      render((current + 1) % schedules.length);
-    }, 1000);
-    playBtn.textContent = '❚❚ Pause';
-  } else {
-    clearInterval(playInt);
-    playBtn.textContent = '▶ Play';
-  }
-  playing = !playing;
-};
+  // 2) UI wiring
+  function setupControls() {
+    const selA = document.getElementById('selA');
+    const selB = document.getElementById('selB');
+    const modeRadios = document.getElementsByName('mode');
+    const gapInput = document.getElementById('gap');
+    const slider = document.getElementById('slider');
+    const playBtn = document.getElementById('play');
 
-timeline.oninput     = () => render(+timeline.value);
-scheduleSel.onchange = () => render(schedules.indexOf(scheduleSel.value));
-scaleSel.onchange    = () => render(current);
-valueSel.onchange    = () => render(current);
-
-// ─────────────────────────────────────────────
-// View-mode handler  (Boardings ↔ Change)
-// ─────────────────────────────────────────────
-mapTypeSel.onchange = () => {
-  const isChange = mapTypeSel.value === 'change';
-
-  // Show / hide the look-back dropdown
-  compareWrapper.style.display = isChange ? 'inline-flex' : 'none';
-
-  // 🔄 Repopulate both selects when we expose Change view
-  if (isChange) {
-    scheduleSel.innerHTML = compareSel.innerHTML =
-      schedules.map(s =>
-        `<option${s === schedules[current] ? ' selected' : ''}>${s}</option>`
-      ).join('');
-
-    // default 1-year (≈3 schedules) look-back
-    compareSel.selectedIndex = Math.max(0, current - 3);
-  }
-  render(current);
-};
-
-// ─────────────────────────────────────────────
-// Utility helpers
-// ─────────────────────────────────────────────
-function scaleVal(v) {
-  if (scaleSel.value === 'sqrt') return Math.sqrt(v);
-  if (scaleSel.value === 'log')  return Math.log10(v + 1);
-  return v;
-}
-
-function toHeatPoints(features, field, positive = null) {
-  return features.reduce((pts, f) => {
-    let v = f.properties[field] || 0;
-    if (positive !== null) {
-      if (positive && v <= 0) return pts;
-      if (!positive && v >= 0) return pts;
-      v = Math.abs(v);
-    }
-    pts.push([f.geometry.coordinates[1], f.geometry.coordinates[0], scaleVal(v)]);
-    return pts;
-  }, []);
-}
-
-// ─────────────────────────────────────────────
-// Core renderer
-// ─────────────────────────────────────────────
-function render(idx) {
-  current = idx;
-  scheduleSel.value = schedules[idx];
-  timeline.value    = idx;
-
-  [heatLayer, posLayer, negLayer].forEach(l => l && map.removeLayer(l));
-
-  const features = allFeatures[idx];
-  if (!features) return;
-
-  const rad = +radiusN.value,
-        blu = +blurN.value,
-        mx  = +maxN.value;
-
-  // ── Change view ──
-  if (mapTypeSel.value === 'change') {
-    const backIdx = compareSel.selectedIndex;
-    const back    = allFeatures[backIdx];
-    const deltas  = features.map(f => {
-      const prev = back?.find(p => p.properties.stop_id === f.properties.stop_id);
-      const delta = (f.properties.boardings || 0) - (prev?.properties.boardings || 0);
-      return { geometry: f.geometry, properties: { ...f.properties, delta } };
+    // populate selectors
+    scheduleKeys.forEach((key, i) => {
+      selA.add(new Option(key, i));
+      selB.add(new Option(key, i));
     });
 
-    posLayer = L.heatLayer(toHeatPoints(deltas, 'delta', true),  {
-      radius: rad, blur: blu, max: mx,
-      gradient: { 0.4: 'pink', 1: 'red' }
-    }).addTo(map);
-    negLayer = L.heatLayer(toHeatPoints(deltas, 'delta', false), {
-      radius: rad, blur: blu, max: mx,
-      gradient: { 0.4: 'lightblue', 1: 'blue' }
-    }).addTo(map);
+    // gap control
+    gapInput.value = gap;
+    gapInput.addEventListener('change', () => {
+      gap = Math.max(1, Math.min(scheduleKeys.length - 1, +gapInput.value));
+      gapInput.value = gap;
+      renderFrame();
+    });
 
-    legend.innerHTML = '<span style="background:red"></span> Increase '
-                     + '<span style="background:blue"></span> Decrease';
-    return;
+    // mode toggle
+    modeRadios.forEach(r => r.addEventListener('change', () => {
+      if (getMode() === 'heat') {
+        selA.disabled = true;
+        selA.value = 0;
+        slider.min = 0;
+        slider.max = scheduleKeys.length - 1;
+        slider.value = currentIdx;
+      } else {
+        selA.disabled = false;
+        slider.min = gap;
+        slider.max = scheduleKeys.length - 1;
+        slider.value = currentIdx + gap;
+      }
+      renderFrame();
+    }));
+
+    // selA / selB changes
+    selA.addEventListener('change', () => {
+      currentIdx = +selA.value;
+      renderFrame();
+    });
+    selB.addEventListener('change', () => {
+      const b = +selB.value;
+      currentIdx = b - gap;
+      selA.value = currentIdx;
+      renderFrame();
+    });
+
+    // slider changes
+    slider.addEventListener('input', () => {
+      const mode = getMode();
+      const v = +slider.value;
+      if (mode === 'heat') {
+        currentIdx = v;
+        selB.value = v;
+      } else {
+        selB.value = v;
+        currentIdx = v - gap;
+        selA.value = currentIdx;
+      }
+      renderFrame();
+    });
+
+    // play/pause
+    playBtn.addEventListener('click', () => {
+      if (playTimer) {
+        clearInterval(playTimer);
+        playTimer = null;
+        playBtn.textContent = 'Play';
+      } else {
+        playBtn.textContent = 'Pause';
+        playTimer = setInterval(() => {
+          const mode = getMode();
+          if (mode === 'heat') {
+            currentIdx = (currentIdx + 1) % scheduleKeys.length;
+            selB.value = currentIdx;
+            slider.value = currentIdx;
+          } else {
+            currentIdx++;
+            if (currentIdx + gap >= scheduleKeys.length) currentIdx = 0;
+            selA.value = currentIdx;
+            selB.value = currentIdx + gap;
+            slider.value = currentIdx + gap;
+          }
+          renderFrame();
+        }, 1000);
+      }
+    });
+
+    // initial defaults
+    selA.value = 0;
+    selB.value = gap;
+    slider.min = gap;
+    slider.max = scheduleKeys.length - 1;
+    slider.value = gap;
   }
 
-  // ── Boardings / Alightings / Total ──
-  const field = valueSel.value;
-  heatLayer = L.heatLayer(toHeatPoints(features, field), {
-    radius: rad, blur: blu, max: mx
-  }).addTo(map);
+  function getMode() {
+    return document.querySelector('input[name="mode"]:checked').value;
+  }
 
-  legend.innerHTML = `<span style="background:red"></span> ${field}`;
-}
+  // 3) Initialize Leaflet map & layers
+  function initMap() {
+    map = L.map('map').setView([39.7392, -104.9903], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    heatLayer = L.heatLayer([], { radius: 25, blur: 15 }).addTo(map);
+    routeLayer = L.geoJSON(null, {
+      style: { color: '#0078A8', weight: 2, opacity: 0.7 }
+    }).addTo(map);
+
+    // draw static network once
+    fetch('sanitized_output/shapes.topo.json')
+      .then(r => r.json())
+      .then(topo => {
+        const geo = topojson.feature(topo, topo.objects.shapes);
+        routeLayer.addData(geo);
+      });
+
+    renderFrame();
+  }
+
+  // 4) Render based on mode
+  function renderFrame() {
+    heatLayer.setLatLngs([]);
+    routeLayer.clearLayers();
+
+    // always redraw network
+    fetch('sanitized_output/shapes.topo.json')
+      .then(r => r.json())
+      .then(topo => {
+        const geo = topojson.feature(topo, topo.objects.shapes);
+        routeLayer.addData(geo);
+      });
+
+    const mode = getMode();
+    if (mode === 'heat') {
+      loadHeat(scheduleKeys[currentIdx]);
+    } else {
+      loadDelta(scheduleKeys[currentIdx], scheduleKeys[currentIdx + gap]);
+    }
+  }
+
+  // 5a) Load raw boardings heat
+  function loadHeat(key) {
+    fetch(`sanitized_output/heat_${key}_Weekday.json`)
+      .then(r => r.json())
+      .then(points => {
+        const latlngs = points
+          .map(({id, w}) => {
+            const s = stopsMetadata[id];
+            if (!s || s.stop_lat == null || s.stop_lon == null) return null;
+            return [s.stop_lat, s.stop_lon, w];
+          })
+          .filter(p => Array.isArray(p) && p.length === 3);
+        heatLayer.setLatLngs(latlngs);
+      });
+  }
+
+  // 5b) Load delta heat between A and B
+  function loadDelta(a, b) {
+    Promise.all([
+      fetch(`sanitized_output/heat_${a}_Weekday.json`).then(r => r.json()),
+      fetch(`sanitized_output/heat_${b}_Weekday.json`).then(r => r.json())
+    ]).then(([ptsA, ptsB]) => {
+      const mapA = {};
+      ptsA.forEach(({id, w}) => { mapA[id] = w; });
+      const latlngs = ptsB
+        .map(({id, w}) => {
+          const s = stopsMetadata[id];
+          if (!s || s.stop_lat == null || s.stop_lon == null) return null;
+          return [s.stop_lat, s.stop_lon, Math.abs(w - (mapA[id] || 0))];
+        })
+        .filter(p => Array.isArray(p) && p.length === 3);
+      heatLayer.setLatLngs(latlngs);
+    });
+  }
+});
