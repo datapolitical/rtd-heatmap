@@ -1,3 +1,5 @@
+// js/presets.js
+
 export const presetList = [
   { key:'b90', name:'Boardings Top 10%', pct:0.90, rad:20, blu:15, mode:'boardings', transform: f=>Math.sqrt(f.total_rides), scale:'sqrt' },
   { key:'b75', name:'Boardings Top 25%', pct:0.75, rad:18, blu:12, mode:'boardings', transform: f=>Math.sqrt(f.total_rides), scale:'sqrt' },
@@ -14,7 +16,8 @@ export const presetList = [
 export function populatePresetDropdown(selectEl) {
   presetList.forEach(p => {
     const opt = document.createElement('option');
-    opt.value = p.key; opt.textContent = p.name;
+    opt.value = p.key;
+    opt.textContent = p.name;
     selectEl.appendChild(opt);
   });
 }
@@ -22,7 +25,27 @@ export function populatePresetDropdown(selectEl) {
 export function applyPresetSettings(key, features) {
   const p = presetList.find(x => x.key === key);
   if (!p) return {};
-  const values = features.map(f => p.transform(f.properties)).sort((a,b)=>a-b);
+
+  // extract transformed values from either tuples or GeoJSON features
+  const values = features
+    .map(f => {
+      if (Array.isArray(f)) {
+        // f is [lat, lon, weight]
+        const w = f[2];
+        return p.mode === 'boardings'
+          ? p.transform({ total_rides: w })
+          : p.transform({ delta: w });
+      }
+      // f is GeoJSON feature
+      return p.transform(f.properties);
+    })
+    .sort((a, b) => a - b);
+
   const maxVal = values[Math.floor(values.length * p.pct)] || 0.1;
-  return { rad: p.rad, blu: p.blu, maxVal: +maxVal.toFixed(1), scale: p.scale };
+  return {
+    rad: p.rad,
+    blu: p.blu,
+    maxVal: +maxVal.toFixed(1),
+    scale: p.scale
+  };
 }

@@ -1,10 +1,13 @@
+// js/app.js
 import { presetList, populatePresetDropdown, applyPresetSettings } from './presets.js';
 
+// Initialize map
 const map = L.map('map').setView([39.75, -105.0], 10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
+// UI elements
 const playBtn      = document.getElementById('playBtn'),
       timeline     = document.getElementById('timeline'),
       scheduleSel  = document.getElementById('scheduleSelect'),
@@ -15,115 +18,140 @@ const playBtn      = document.getElementById('playBtn'),
       radiusNum    = document.getElementById('radiusNum'),
       blurNum      = document.getElementById('blurNum'),
       maxNum       = document.getElementById('maxNum'),
-      scaleSel     = document.getElementById('scaleType'),
-      legend       = document.getElementById('legend'),
-      defaultBtn   = document.getElementById('defaultBtn'),
+      scaleSel     = document.getElementById('scale'),
       presetSelect = document.getElementById('presetSelect');
 
-let schedules = [], allFeatures = [], heatLayer, posLayer, negLayer;
-let playing = false, playInterval, noDataControl = null;
+let frames = [],        // array of { schedule_key, date, file }
+    allFeatures = [],   // array of [lat, lon, weight] arrays
+    heatLayer, posLayer, negLayer,
+    playing = false,
+    playInt,
+    noDataControl = null;
 
-// Load schedule index
-fetch('sanitized_output/index.json')
-  .then(r => r.json())
-  .then(list => {
-    schedules = list;
-    scheduleSel.innerHTML = schedules.map(s=>`<option>${s}</option>`).join('');
-    timeline.max = schedules.length - 1;
-    return Promise.all(
-      schedules.map(key =>
-        fetch(`sanitized_output/rtd_${key}_Weekday.geojson`)
-          .then(r=>r.json())
-          .then(gj=>gj.features)
-      )
-    );
-  })
-  .then(arrays => {
-    allFeatures = arrays;
-    populatePresetDropdown(presetSelect);
-    updateFrame(0);
-  })
-  .catch(console.error);
+// Helper to link a range + number input
+function bind(rangeEl, numEl) {
+  rangeEl.oninput = () => { numEl.value = rangeEl.value; renderFrame(+timeline.value); };
+  numEl.onchange  = () => { rangeEl.value = numEl.value; renderFrame(+timeline.value); };
+}
 
-// Frame / play logic...
-function updateFrame(i){
-  i = Math.max(0, Math.min(schedules.length-1, i));
+// 1) Load stops metadata
+let stopsMeta = {};
+fetch('sanitized_output/stops_metadata.json')
+  .then(r => r.ok ? r.json() : Promise.reject('stops_metadata.json not found'))
+  .then(obj => {
+    stopsMeta = obj;
+    console.log('✔ Loaded stops metadata:', Object.keys(stopsMeta).length, 'stops');
+  })
+  .catch(err => console.error('❌ Error loading stops metadata:', err));
+
+// 2) Load index and heat data
+Promise.all([
+  fetch('sanitized_output/index.json').then(r => {
+    if (!r.ok) throw new Error(`index.json ${r.status}`);
+    return r.json();
+  })
+])
+.then(([list]) => {
+  // filter only heat files
+  frames = list
+    .filter(e => e.file.startsWith('heat_'))
+    .map(e => ({ schedule_key: e.schedule_key, date: e.date, file: e.file }));
+  if (!frames.length) throw new Error('No heat_*.json entries in index.json');
+
+  // populate UI
+  scheduleSel.innerHTML = frames
+    .map((f,i) => `<option value="${i}">${f.schedule_key} ${f.date}</option>`)
+    .join('');
+  timeline.max = frames.length - 1;
+
+  // fetch heat entries
+  return Promise.all(
+    frames.map(f =>
+      fetch(`sanitized_output/${f.file}`)
+        .then(r => r.ok ? r.json() : [])
+        .catch(() => [])
+    )
+  );
+})
+.then(arrays => {
+  // arrays[i] is an array of { id, w }
+  allFeatures = arrays.map(entries =>
+    entries
+      .map(({id, w}) => {
+        const loc = stopsMeta[id] || {};
+        return [ loc.lat, loc.lon, w ];
+      })
+      .filter(pt => typeof pt[0] === 'number' && typeof pt[1] === 'number')
+  );
+
+  console.log('✔ Prepared allFeatures, sample counts:', allFeatures.map(a => a.length));
+
+  populatePresetDropdown(presetSelect);
+
+  // seed controls so frame 0 shows immediately
+  const { rad, blu, maxVal } = applyPresetSettings(presetSelect.value, allFeatures[0]);
+  radiusRng.value = radiusNum.value = rad;
+  blurRng.value   = blurNum.value   = blu;
+  maxRng.value    = maxNum.value    = maxVal;
+
+  updateFrame(0);
+})
+.catch(err => console.error('❌ Error loading heatmap data:', err));
+
+// Draw a single frame
+function renderFrame(idx) {
+  [heatLayer, posLayer, negLayer].forEach(l => l && map.removeLayer(l));
+  if (noDataControl) { map.removeControl(noDataControl); noDataControl = null; }
+
+  const pts = allFeatures[idx] || [];
+  if (!pts.length) {
+    noDataControl = L.control({ position: 'topright' });
+    noDataControl.onAdd = () => {
+      const d = L.DomUtil.create('div', 'no-data');
+      d.textContent = `No data for ${frames[idx].schedule_key} ${frames[idx].date}`;
+      return d;
+    };
+    return noDataControl.addTo(map);
+  }
+
+  const isDelta = mapTypeSel.value === 'change';
+  const { rad, blu, maxVal, scale } = applyPresetSettings(presetSelect.value, pts);
+
+  if (isDelta) {
+    const pos = pts.filter(p => p[2] > 0);
+    const neg = pts.filter(p => p[2] < 0).map(p => [p[0], p[1], Math.abs(p[2])]);
+    heatLayer = L.heatLayer(pos,    { radius: rad, blur: blu, max: maxVal, scale, gradient: {0.4:'blue',0.65:'lime',1:'red'} }).addTo(map);
+    posLayer  = L.heatLayer(neg,    { radius: rad, blur: blu, max: maxVal, scale }).addTo(map);
+  } else {
+    heatLayer = L.heatLayer(pts, { radius: rad, blur: blu, max: maxVal, scale }).addTo(map);
+  }
+}
+
+// Update UI + map for a given frame index
+function updateFrame(i) {
+  i = Math.max(0, Math.min(frames.length - 1, i));
   timeline.value = i;
-  scheduleSel.value = schedules[i];
+  scheduleSel.value = i;
   renderFrame(i);
 }
-playBtn.onclick = () => {
-  if(!playing){
-    playing = true; playBtn.textContent='❚❚ Pause';
-    playInterval = setInterval(()=>updateFrame(+timeline.value+1),1000);
+
+// Wire up controls
+playBtn.onclick      = () => {
+  if (!playing) {
+    playing = true;
+    playBtn.textContent = '■';
+    playInt = setInterval(() => updateFrame(+timeline.value + 1), 1000);
   } else {
-    playing = false; playBtn.textContent='▶ Play'; clearInterval(playInterval);
+    playing = false;
+    playBtn.textContent = '▶';
+    clearInterval(playInt);
   }
 };
-timeline.oninput = () => updateFrame(+timeline.value);
-scheduleSel.onchange = () => updateFrame(schedules.indexOf(scheduleSel.value));
-
-function computePoints(feats, isDelta, positive){
-  const scale = scaleSel.value;
-  return feats.reduce((pts,f)=>{
-    const v = isDelta?f.properties.delta:f.properties.total_rides;
-    if(isDelta){
-      if(positive&&v<=0) return pts;
-      if(!positive&&v>=0) return pts;
-    }
-    let w=Math.abs(v);
-    if(scale==='sqrt') w=Math.sqrt(w);
-    if(scale==='log')  w=Math.log10(w+1);
-    pts.push([f.geometry.coordinates[1],f.geometry.coordinates[0],w]);
-    return pts;
-  },[]);
-}
-
-function renderFrame(idx){
-  [heatLayer,posLayer,negLayer].forEach(l=>l&&map.removeLayer(l));
-  if(noDataControl){ map.removeControl(noDataControl); noDataControl=null; }
-  const feats = allFeatures[idx];
-  if(!feats||feats.length===0){
-    noDataControl=L.control({position:'topright'});
-    noDataControl.onAdd=()=>{ const d=L.DomUtil.create('div','no-data'); d.textContent=`No data for ${schedules[idx]}`; return d; };
-    noDataControl.addTo(map);
-    return;
-  }
-  const rad=+radiusNum.value, blu=+blurNum.value, mx=+maxNum.value;
-  if(mapTypeSel.value==='boardings'){
-    heatLayer=L.heatLayer(computePoints(feats,false),{radius:rad,blur:blu,max:mx}).addTo(map);
-    legend.innerHTML='<span style="background:red"></span> Boardings';
-  } else {
-    if(scaleSel.value!=='normal') scaleSel.value='normal';
-    posLayer=L.heatLayer(computePoints(feats,true,true),{radius:rad,blur:blu,max:mx,gradient:{0.4:'pink',1:'red'}}).addTo(map);
-    negLayer=L.heatLayer(computePoints(feats,true,false),{radius:rad,blur:blu,max:mx,gradient:{0.4:'lightblue',1:'blue'}}).addTo(map);
-    legend.innerHTML='<span style="background:red"></span> Increase  <span style="background:blue"></span> Decrease';
-  }
-}
-
-function bind(rng,num){
-  rng.oninput=()=>{ num.value=rng.value; renderFrame(+timeline.value); };
-  num.onchange=()=>{ rng.value=num.value; renderFrame(+timeline.value); };
-}
-bind(radiusRng,radiusNum); bind(blurRng,blurNum); bind(maxRng,maxNum);
-mapTypeSel.onchange=()=>renderFrame(+timeline.value);
-scaleSel.onchange=()=>renderFrame(+timeline.value);
-
-defaultBtn.onclick=()=>{
-  radiusRng.value=radiusNum.value=10;
-  blurRng.value=blurNum.value=8;
-  maxRng.value=maxNum.value=0.5;
-  scaleSel.value=mapTypeSel.value==='boardings'?'sqrt':'normal';
-  presetSelect.selectedIndex=0;
-  renderFrame(+timeline.value);
-};
-
-presetSelect.onchange=()=>{
-  const key=presetSelect.value, idx=+timeline.value, feats=allFeatures[idx];
-  const {rad,blu,maxVal,scale} = applyPresetSettings(key,feats);
-  radiusRng.value=radiusNum.value=rad;
-  blurRng.value=blurNum.value=blu;
-  maxRng.value=maxNum.value=maxVal;
-  scaleSel.value=scale;
-  renderFrame(idx);
-};
+timeline.oninput     = () => updateFrame(+timeline.value);
+scheduleSel.onchange = () => updateFrame(+scheduleSel.value);
+mapTypeSel.onchange  = () => renderFrame(+timeline.value);
+bind(radiusRng, radiusNum);
+bind(blurRng, blurNum);
+bind(maxRng, maxNum);
+scaleSel.onchange    = () => renderFrame(+timeline.value);
+presetSelect.onchange= () => renderFrame(+timeline.value);
